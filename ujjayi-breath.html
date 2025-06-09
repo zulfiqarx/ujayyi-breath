@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ujjayi Breathing Tracker</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Arial', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            color: white;
+        }
+
+        .container {
+            text-align: center;
+            padding: 2rem;
+            max-width: 500px;
+            width: 90%;
+        }
+
+        h1 {
+            font-size: 2.5rem;
+            margin-bottom: 1rem;
+            font-weight: 300;
+            letter-spacing: 2px;
+        }
+
+        .subtitle {
+            font-size: 1.1rem;
+            margin-bottom: 3rem;
+            opacity: 0.8;
+        }
+
+        .breathing-circle {
+            width: 200px;
+            height: 200px;
+            border: 3px solid rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            margin: 2rem auto;
+            position: relative;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .inner-circle {
+            width: 80px;
+            height: 80px;
+            background: rgba(255, 255, 255, 0.9);
+            border-radius: 50%;
+            transition: all ease-in-out;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-weight: bold;
+            color: #667eea;
+            font-size: 0.9rem;
+        }
+
+        .inner-circle.inhale {
+            width: 180px;
+            height: 180px;
+            transition-duration: 4s;
+        }
+
+        .inner-circle.hold {
+            transition-duration: 0.5s;
+        }
+
+        .inner-circle.exhale {
+            width: 80px;
+            height: 80px;
+            transition-duration: 6s;
+        }
+
+        .instruction {
+            font-size: 1.5rem;
+            margin: 2rem 0;
+            min-height: 2rem;
+            font-weight: 300;
+        }
+
+        .controls {
+            margin-top: 2rem;
+        }
+
+        button {
+            background: rgba(255, 255, 255, 0.2);
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            color: white;
+            padding: 12px 24px;
+            font-size: 1rem;
+            border-radius: 25px;
+            cursor: pointer;
+            margin: 0 10px;
+            transition: all 0.3s ease;
+            backdrop-filter: blur(10px);
+        }
+
+        button:hover {
+            background: rgba(255, 255, 255, 0.3);
+            transform: translateY(-2px);
+        }
+
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .cycle-counter {
+            font-size: 1.2rem;
+            margin-top: 1rem;
+            opacity: 0.9;
+        }
+
+        .timer {
+            font-size: 1.1rem;
+            margin-top: 0.5rem;
+            opacity: 0.7;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Ujjayi Breathing</h1>
+        <p class="subtitle">4s in • 4s hold • 6s out • 2s hold</p>
+        
+        <div class="breathing-circle">
+            <div class="inner-circle" id="breathingCircle">
+                <span id="circleText">Ready</span>
+            </div>
+        </div>
+        
+        <div class="instruction" id="instruction">Click Start to begin your practice</div>
+        <div class="timer" id="timer"></div>
+        
+        <div class="controls">
+            <button id="startBtn" onclick="startBreathing()">Start</button>
+            <button id="stopBtn" onclick="stopBreathing()" disabled>Stop</button>
+        </div>
+        
+        <div class="cycle-counter" id="cycleCounter">Cycles completed: 0</div>
+    </div>
+
+    <script>
+        let isActive = false;
+        let currentPhase = 0; // 0: inhale, 1: hold1, 2: exhale, 3: hold2
+        let cycleCount = 0;
+        let phaseTimer;
+        let countdownTimer;
+        let timeRemaining = 0;
+
+        const phases = [
+            { name: 'Breathe In', duration: 4000, class: 'inhale', text: 'INHALE' },
+            { name: 'Hold', duration: 4000, class: 'hold', text: 'HOLD' },
+            { name: 'Breathe Out', duration: 6000, class: 'exhale', text: 'EXHALE' },
+            { name: 'Hold', duration: 2000, class: 'hold', text: 'HOLD' }
+        ];
+
+        function startBreathing() {
+            if (isActive) return;
+            
+            isActive = true;
+            currentPhase = 0;
+            document.getElementById('startBtn').disabled = true;
+            document.getElementById('stopBtn').disabled = false;
+            
+            runPhase();
+        }
+
+        function stopBreathing() {
+            isActive = false;
+            clearTimeout(phaseTimer);
+            clearInterval(countdownTimer);
+            
+            document.getElementById('startBtn').disabled = false;
+            document.getElementById('stopBtn').disabled = true;
+            document.getElementById('instruction').textContent = 'Click Start to begin your practice';
+            document.getElementById('timer').textContent = '';
+            document.getElementById('circleText').textContent = 'Ready';
+            
+            const circle = document.getElementById('breathingCircle');
+            circle.className = 'inner-circle';
+        }
+
+        function runPhase() {
+            if (!isActive) return;
+            
+            const phase = phases[currentPhase];
+            const circle = document.getElementById('breathingCircle');
+            
+            // Update instruction
+            document.getElementById('instruction').textContent = phase.name;
+            document.getElementById('circleText').textContent = phase.text;
+            
+            // Apply animation class
+            circle.className = `inner-circle ${phase.class}`;
+            
+            // Start countdown
+            timeRemaining = Math.ceil(phase.duration / 1000);
+            updateTimer();
+            
+            countdownTimer = setInterval(() => {
+                timeRemaining--;
+                updateTimer();
+                if (timeRemaining <= 0) {
+                    clearInterval(countdownTimer);
+                }
+            }, 1000);
+            
+            // Move to next phase
+            phaseTimer = setTimeout(() => {
+                currentPhase = (currentPhase + 1) % 4;
+                
+                // If we completed a full cycle
+                if (currentPhase === 0) {
+                    cycleCount++;
+                    document.getElementById('cycleCounter').textContent = `Cycles completed: ${cycleCount}`;
+                }
+                
+                runPhase();
+            }, phase.duration);
+        }
+
+        function updateTimer() {
+            document.getElementById('timer').textContent = `${timeRemaining}s`;
+        }
+
+        // Prevent accidental page refresh
+        window.addEventListener('beforeunload', function(e) {
+            if (isActive) {
+                e.preventDefault();
+                e.returnValue = '';
+            }
+        });
+    </script>
+</body>
+</html>
